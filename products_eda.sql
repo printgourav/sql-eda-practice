@@ -223,6 +223,62 @@ WHERE cost = (
 )
 GROUP BY subcategory
 ORDER BY max_cost_count DESC, subcategory ASC;
+
 -- ===================================================
+-- Purpose: To know which subcategory has expensive products in quantity terms
+-- Observation:  -- Road frames, touring bikes exhibit multiple products at the maximum price point .
+--               -- In contrast, many subcategories such as caps, chainer, cleaner and etc have a single product defining the maximum cost .
+SELECT subcategory, COUNT(product_id) AS max_cost_count
+FROM `playground027.my_eda_project.products` p
+WHERE cost = (
+  SELECT MAX(cost)
+  FROM `playground027.my_eda_project.products`
+  WHERE subcategory = p.subcategory
+)
+GROUP BY subcategory
+ORDER BY max_cost_count DESC, subcategory ASC ;
+
+-- ===================================================
+-- Purpose: Understand price segmentation of products 
+--          within each subcategory to identify budget,
+--          standard, and premium product segments.
+-- Observation:
+-- - Road Bikes: largest subcategory with mixed
+--   high-range and budget-range distribution.
+-- - Mountain Bikes: second largest with significant
+--   premium product concentration.
+-- - Accessories (Locks, Chains, Fenders): predominantly
+--   budget-range products (avg cost ~$15-25).
+-- - Components: balanced distribution between
+--   budget and high-range products.
+-- - Unknown subcategory: 7 products segmented based
+--   on overall product average cost.
+
+WITH product_stats AS (
+SELECT 
+  COALESCE(subcategory, 'Unknown') as subcategory,
+  product_name,
+  product_id,
+  cost as product_cost,
+  MAX(cost) OVER(PARTITION BY COALESCE(subcategory, 'Unknown')) as max_cost_product_wise,
+  MIN(cost) OVER(PARTITION BY COALESCE(subcategory, 'Unknown')) as min_cost_product_wise,
+  ROUND(AVG(cost) OVER(PARTITION BY COALESCE(subcategory, 'Unknown')),2) as avg_cost_product_wise
+FROM `playground027.my_eda_project.products`
+)
+SELECT 
+  subcategory,
+  price_segment,
+  COUNT(product_id) AS product_count
+FROM (
+  SELECT *,
+    CASE 
+      WHEN product_cost > avg_cost_product_wise  THEN 'High-Range'
+      WHEN product_cost < avg_cost_product_wise  THEN 'Budget-Range'
+      ELSE 'Standard-Range'
+    END AS price_segment
+  FROM product_stats
+)
+GROUP BY subcategory, price_segment
+ORDER BY subcategory, price_segment;
 
  
