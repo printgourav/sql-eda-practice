@@ -1,13 +1,14 @@
 # Products EDA using BigQuery
 
-## 📚 Project Summary
+##  Project Summary
 This is an **exploratory data analysis (EDA) learning project** using **Google BigQuery** to analyze a product dataset. 
 I've created a SQL-based analysis of 295 products across 11 dimensions to understand data structure, quality, and patterns.
 
-## 📊 Dataset Information
+### Goal 
+Understand structure, data quality, and cost distribution of products across categories
 
+## Dataset Information
 **Database:** `playground027.my_eda_project.products`
-
 | Attribute | Details |
 |-----------|----------|
 | **Total Records** | 295 products |
@@ -30,20 +31,21 @@ I've created a SQL-based analysis of 295 products across 11 dimensions to unders
 | `product_line` | String | Product line classification (4 unique values) |
 | `start_date` | String | Product launch/start date |
 
-## 🎯 Key Findings
-✨ High data quality (97.63% complete)  
-✨ Clear cost differentiation by category  
-✨ Product concentration in 2 subcategories (Road Bikes, Road Frames)  
-✨ Data ready for deeper analysis  
+ Overall Findings
+ - High data quality (97.63% complete)  
+ - Clear cost differentiation by category  
+ - Product concentration in 2 subcategories (Road Bikes, Road Frames)  
+ - Data ready for deeper analysis  
 
-## 📊 What I've Analyzed
+## Detailed Findings
+
 **1. Data Structure**
 - 4 categories, 37 subcategories, 295 products, 4 product lines
 - Explored hierarchical relationships (category → subcategory → product)
 - Validated category-ID mappings
 
 **2. Data Quality**
-- No duplicate product IDs ✓
+- No duplicate product IDs 
 - 97.63% data completeness
 - Identified 2.37% NULL values in category/subcategory/product_line/maintenance
 - Zero-cost products detected: 2 RoadFrame items
