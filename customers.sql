@@ -158,4 +158,242 @@ WHERE marital_status = 'Married'
 GROUP BY country, gender
 ORDER BY 3 DESC;
 
--- 
+
+-- Purpose:
+-- To identify the number and percentage of missing (NULL) values in the birthdate column.
+-- Observations:
+-- There are 17 such records or 0.09%  missing birthdate values.
+-- The number of missing entries is relatively small compared to the overall dataset.
+-- These null values may have minimal impact but should still be handled before age-based analysis.
+
+SELECT COUNT(*) - COUNT(birthdate) AS Null_Found
+FROM `playground027.my_eda_project.customer`;
+
+SELECT 
+  (COUNT(*) - COUNT(birthdate)) * 100.0 / COUNT(*) AS Birthdate_null_percentage
+FROM `playground027.my_eda_project.customer`;
+
+SELECT
+ *,
+  COALESCE(
+    CAST(DATE_DIFF(CURRENT_DATE(), birthdate, YEAR) AS STRING),
+    'Missing_value'
+  ) AS Age_as_on_today
+FROM `playground027.my_eda_project.customer`;
+
+-- Purpose: -- To count customer records with valid age (0–100) and complete demographic data (country and gender).
+-- Observations:
+-- A total of 18,097 records meet all validation criteria.
+-- These records exclude NULL birthdates, unrealistic ages, and 'n/a' values in country and gender.
+-- Compared to the earlier valid age count (18,448), 351 additional records were removed due to missing country or gender.
+-- This refined dataset is suitable for demographic analysis involving age, country, and gender.
+
+
+SELECT COUNT(customer_id) valid_Records
+FROM `playground027.my_eda_project.customer`
+WHERE birthdate IS NOT NULL
+  AND DATE_DIFF(CURRENT_DATE(), birthdate, YEAR) BETWEEN 0 AND 100
+  AND COUNTRY <> 'n/a' AND gender <> 'n/a' ;
+
+
+-- Purpose: -- To assess data quality by identifying missing and invalid values across key fields.
+-- Observations:
+-- There are 17 records with missing birthdate and 19 records with age above 100, indicating minor age-related data issues.
+-- A larger number of records have missing country information (337), making it the most significant data quality concern.
+-- Only 15 records have missing gender values, indicating relatively complete gender data.
+-- These counts may overlap (i.e., the same record can have multiple issues), so they should not be summed directly.
+-- Overall, country field requires the most attention for data cleaning.
+
+SELECT
+  COUNTIF(birthdate IS NULL) AS null_birthdate,
+  COUNTIF(DATE_DIFF(CURRENT_DATE(), birthdate, YEAR) > 100) AS age_above_100,
+  COUNTIF(country = 'n/a') AS missing_country_name,
+  COUNTIF(gender = 'n/a') AS missing_gender_value
+FROM `playground027.my_eda_project.customer`;
+
+-- Purpose:  -- To create a cleaned subset of customer data with valid age and complete demographic fields.
+-- Observations:
+-- The CTE filters out records with missing birthdate, unrealistic ages (outside 0–100), and 'n/a' values in country and gender.
+-- The resulting dataset represents a refined and reliable population for demographic and age-based analysis.
+-- This approach centralizes data cleaning logic, making downstream queries more consistent and reusable.
+
+WITH clean_records_of_customers AS (
+SELECT 
+    customer_key,
+    customer_id,
+    customer_number,
+    first_name,
+    last_name,
+    country,
+    marital_status,
+    gender,
+    birthdate,
+    DATE_DIFF(CURRENT_DATE(), birthdate, YEAR) as age,
+    create_date
+FROM `playground027.my_eda_project.customer`
+WHERE birthdate IS NOT NULL
+    AND DATE_DIFF(CURRENT_DATE(), birthdate, YEAR) BETWEEN 0 AND 100
+    AND country <> 'n/a'
+    AND gender <> 'n/a'
+)
+SELECT * FROM clean_records_of_customers;
+
+-- Purpose:
+-- To segment customers into age groups and understand the distribution across different life stages.
+-- Observations:
+-- The majority of customers fall in the Middle-aged group (40–59) with 11,377 customers, indicating a strong concentration in this segment.
+-- Senior customers (60–80) form the second largest group with 6,052 customers, showing a significant older customer base.
+-- Customers aged 80+ are relatively few (668), indicating a very small elderly segment.
+-- Overall, the customer base is skewed toward middle-aged individuals, with decreasing representation in higher age groups.
+
+SELECT 
+CASE 
+  WHEN age < 40 THEN 'Young (<40)'
+  WHEN age BETWEEN 40 AND 59 THEN 'Middle-aged (40–59)'
+  WHEN age BETWEEN 60 AND 80 THEN 'Senior (60–80)'
+  ELSE '80+'
+END AS age_group,
+COUNT(customer_id) AS Number_of_customers
+FROM clean_records_of_customers
+GROUP BY Age_Group 
+ORDER BY 2 DESC;
+
+-- Purpose:
+-- To compare customer age group distribution across countries and identify demographic patterns.
+-- Observations:
+-- Middle-aged customers (40–59) dominate across all countries, forming the largest segment consistently.
+-- The United States leads in customer count across all age groups, reflecting its larger customer base.
+-- Senior customers (60–80) represent a substantial portion in every country, indicating a mature customer demographic.
+-- The 80+ segment remains minimal across all regions, showing limited presence of very elderly customers.
+-- Age distribution patterns are uniform across countries, suggesting similar demographic structures globally.
+-- Variations between countries are driven more by total volume than by differences in age composition.
+
+SELECT 
+Country,
+CASE 
+  WHEN age < 40 THEN 'Young (<40)'
+  WHEN age BETWEEN 40 AND 59 THEN 'Middle-aged (40–59)'
+  WHEN age BETWEEN 60 AND 80 THEN 'Senior (60–80)'
+  ELSE '80+'
+END AS age_group,
+COUNT(customer_id) AS Number_of_customers
+FROM clean_records_of_customers
+GROUP BY Age_Group, Country
+ORDER BY country, Number_of_customers DESC;
+
+-- Purpose:
+-- To understand how married customers are distributed across age groups within each country.
+-- Observations:
+-- Married customers are primarily concentrated in the Middle-aged (40–59) group across all countries.
+-- Senior (60–80) married customers form the second largest segment, indicating a significant older married population.
+-- The Young (<40) married segment is relatively small across all regions, suggesting lower early-marriage representation.
+-- The 80+ group is minimal in every country.
+-- The United States has the highest number of married customers in all age groups, followed by other countries with similar proportional patterns.
+-- Overall, the age distribution of married customers is consistent across countries, with differences mainly driven by total volume rather than structure.
+
+SELECT 
+Country,
+CASE 
+  WHEN age < 40 THEN 'Young (<40)'
+  WHEN age BETWEEN 40 AND 59 THEN 'Middle-aged (40–59)'
+  WHEN age BETWEEN 60 AND 80 THEN 'Senior (60–80)'
+  ELSE '80+'
+END AS Agegroup,
+COUNT(customer_id) AS Number_of_customers
+FROM clean_records_of_customers
+WHERE marital_status = 'Married'
+GROUP BY Agegroup, Country
+ORDER BY country, Number_of_customers DESC;
+
+-- Purpose:
+-- To analyze marital status distribution (married vs single) across age groups and countries, and quantify their proportions.
+-- Observations:
+-- Middle-aged customers (40–59) show near-balanced or single-dominant patterns in some countries (e.g., Australia ~50/50, France skewed toward singles).
+-- Senior (60–80) and 80+ groups consistently show higher married percentages across most countries, indicating stronger marital stability with increasing age.
+-- Canada and Australia exhibit a clear shift toward married customers as age increases, with married_pct rising significantly in older groups.
+-- France is an outlier in the middle-aged group, where single customers dominate (63.66%), unlike other countries.
+-- The 80+ segment, while small in volume, has the highest married proportions in most countries, reinforcing the age–marriage correlation.
+-- Overall, there is a clear trend: likelihood of being married increases with age across countries, with some regional variation in younger segments.
+
+SELECT 
+  country,
+  CASE 
+    WHEN age < 40 THEN 'Young (<40)'
+    WHEN age BETWEEN 40 AND 59 THEN 'Middle-aged (40–59)'
+    WHEN age BETWEEN 60 AND 80 THEN 'Senior (60–80)'
+    ELSE '80+'
+  END AS age_group,
+  COUNT(customer_id) AS overall_customers,
+  COUNTIF(marital_status = 'Married') AS married_customers,
+  COUNTIF(marital_status = 'Single') AS single_customers,
+  ROUND(COUNTIF(marital_status = 'Married') * 100.0 / COUNT(customer_id), 2) AS married_pct,
+  ROUND(COUNTIF(marital_status = 'Single') * 100.0 / COUNT(customer_id),  2) AS single_pct
+FROM clean_records_of_customers
+GROUP BY age_group, country
+ORDER BY country ASC, married_customers DESC;
+
+
+-- Purpose:
+-- To analyze monthly customer acquisition trends over time.
+-- Observations:
+-- Customer acquisition is highly uneven across months, with significant spikes in October 2025 (4,178) and January 2026 (13,763).
+-- November (30) and December (126) show extremely low counts, suggesting incomplete data capture or partial months rather than true business trends.
+-- January 2026 represents the peak, accounting for the majority of new customers in the observed period.
+-- Overall, the data does not reflect a smooth monthly trend and should be interpreted with caution.
+
+SELECT 
+  FORMAT_DATE('%Y-%m', create_date) AS YYYY_MM,
+  COUNT(customer_id) AS new_customers
+FROM clean_records_of_customers
+GROUP BY YYYY_MM
+ORDER BY YYYY_MM ASC;
+
+-- Purpose:
+-- To analyze monthly customer acquisition segmented by age group and marital status.
+-- Observations:
+-- October 2025 shows strong customer acquisition across all age groups, with Middle-aged (40–59) contributing the largest share.
+-- In October, Middle-aged customers are more single-heavy, while Senior (60–80) and 80+ groups are predominantly married.
+-- November and December 2025 have very low counts across all segments, indicating incomplete or partial data rather than actual decline.
+-- January 2026 shows a sharp spike in new customers, especially in the Middle-aged group, with a near-balanced split between married and single customers.
+-- Across months, younger segments tend to have higher single proportions, while older segments (60+) consistently show higher married counts.
+-- Overall, acquisition trends are irregular, suggesting batch data loads or reporting cutoffs rather than steady growth patterns.
+
+SELECT 
+  CASE 
+    WHEN age < 40 THEN 'Young (<40)'
+    WHEN age BETWEEN 40 AND 59 THEN 'Middle-aged (40–59)'
+    WHEN age BETWEEN 60 AND 80 THEN 'Senior (60–80)'
+    ELSE '80+'
+  END AS age_group,
+  FORMAT_DATE('%Y-%m', create_date) AS YYYY_MM,
+  COUNT(customer_id) AS new_customers,
+  COUNTIF(marital_status = 'Married')AS new_married_customers,
+  COUNTIF(marital_status = 'Single')AS new_single_customers
+FROM clean_records_of_customers
+GROUP BY YYYY_MM, age_group
+ORDER BY YYYY_MM  ASC ;
+
+-- Purpose:
+-- To analyze customer acquisition trends by country, age group, and month.
+-- Observations:
+-- October 2025 shows strong acquisition across all countries, with the United States contributing the highest volumes, especially in the Middle-aged (40–59) segment.
+-- Across all countries, Middle-aged customers consistently form the largest share of new customers, followed by Seniors (60–80), with 80+ being minimal.
+-- November and December 2025 show extremely low acquisition across all countries and age groups, indicating likely partial or incomplete data.
+-- January 2026 exhibits a sharp surge in new customers across every country, with particularly high growth in the United States and Australia.
+-- The spike in January is most pronounced in the Middle-aged segment, reinforcing it as the primary driver of customer growth.
+-- Senior customer acquisition is also substantial in January across all regions, indicating strong engagement from older demographics.
+-- The 80+ segment remains consistently small across all months and countries.
+-- Overall, acquisition patterns are inconsistent over time, suggesting batch data loads or reporting cutoffs rather than steady month-on-month growth.
+SELECT 
+  Country,
+  CASE 
+    WHEN age < 40 THEN 'Young (<40)'
+    WHEN age BETWEEN 40 AND 59 THEN 'Middle-aged (40–59)'
+    WHEN age BETWEEN 60 AND 80 THEN 'Senior (60–80)'
+    ELSE '80+'
+  END AS age_group,
+  FORMAT_DATE('%Y-%m', create_date) AS YYYY_MM,
+  COUNT(customer_id) AS new_customers
+FROM clean_records_of_customers
+GROUP BY  YYYY_MM, age_group, Country
+ORDER BY  country ASC,  age_group ASC, YYYY_MM ASC ;
