@@ -434,16 +434,21 @@ FROM clean_records_of_customers
 GROUP BY  YYYY_MM, age_group, Country
 ORDER BY  country ASC, age_group ASC, YYYY_MM ASC 
 )
-SELECT Country, age_group, YYYY_MM, new_customers,
-COALESCE(LAG(new_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_customer,
-ROUND(COALESCE((new_customers - LAG(new_customers) OVER (PARTITION BY Country, age_group ORDER BY YYYY_MM)) / NULLIF(LAG(new_customers) OVER (PARTITION BY Country, age_group ORDER BY YYYY_MM), 0),0) * 100,2)AS `MoM%_New_Customers`,
-  new_female_customers,
-  female_participation,
-COALESCE(LAG(new_female_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_female_customers,
-ROUND(COALESCE((new_female_customers - LAG(new_female_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM))/NULLIF(LAG(new_female_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM),0), 0)* 100,2) as `MoM%_New_female_Customers`,
-  new_male_customers,
-  male_participation,
-COALESCE(LAG(new_male_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_male_customer,
-ROUND(COALESCE((new_male_customers - LAG(new_male_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM))/NULLIF(LAG(new_male_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM),0),0)* 100,2) as `MoM%_New_male_customers`
+	
+SELECT 
+	Country, 
+	age_group, 
+	YYYY_MM, 
+	new_customers,
+	COALESCE(LAG(new_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_customer,
+	ROUND(COALESCE((new_customers - LAG(new_customers) OVER (PARTITION BY Country, age_group ORDER BY YYYY_MM)) / NULLIF(LAG(new_customers) OVER (PARTITION BY Country, age_group ORDER BY YYYY_MM), 0),0) * 100,2)AS `MoM%_New_Customers`,
+	new_female_customers,
+	female_participation,
+	COALESCE(LAG(new_female_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_female_customers,
+	ROUND(COALESCE((new_female_customers - LAG(new_female_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM))/NULLIF(LAG(new_female_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM),0), 0)* 100,2) as `MoM%_New_female_Customers`,
+	new_male_customers,
+	male_participation,
+	COALESCE(LAG(new_male_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_male_customer,
+	ROUND(COALESCE((new_male_customers - LAG(new_male_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM))/NULLIF(LAG(new_male_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM),0),0)* 100,2) as `MoM%_New_male_customers`
 FROM New_customers_data;
 
