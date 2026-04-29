@@ -397,3 +397,53 @@ SELECT
 FROM clean_records_of_customers
 GROUP BY  YYYY_MM, age_group, Country
 ORDER BY  country ASC,  age_group ASC, YYYY_MM ASC ;
+
+-- Purpose:
+-- To perform a detailed month-over-month (MoM) analysis of new customer acquisition by country and age group,
+-- including gender composition and growth trends.
+-- Observations:
+-- Customer acquisition shows extreme volatility, with sharp drops in Nov–Dec 2025 followed by very large spikes in Jan 2026 across all countries and age groups.
+-- MoM growth percentages are highly inflated (e.g., >5000% or even >18000%) due to very low or near-zero base values in prior months, limiting their analytical reliability.
+-- Middle-aged (40–59) customers consistently drive the highest acquisition volumes and dominate growth across all countries.
+-- Gender participation remains stable (~45–55%) in high-volume months (e.g., Jan 2026), indicating a balanced gender distribution in reliable data periods.
+-- In low-volume months, gender percentages fluctuate significantly, which is a sample size effect rather than a real behavioral shift.
+-- Female and male MoM trends closely mirror overall customer trends, suggesting no strong gender-specific acquisition bias.
+-- Countries like the United States, Australia, and Canada exhibit the largest spikes in Jan 2026, indicating bulk data inflow or onboarding events rather than organic growth.
+-- Smaller segments (especially 80+) show exaggerated MoM changes due to low counts, making trend interpretation less meaningful for these groups.
+-- Overall, trends are inconsistent over time, and MoM metrics should be interpreted with caution, especially when prior month values are very low or zero.
+
+WITH New_customers_data AS (
+  SELECT Country,
+  CASE 
+    WHEN age < 40 THEN 'Young (<40)'
+    WHEN age BETWEEN 40 AND 59 THEN 'Middle-aged (40–59)'
+    WHEN age BETWEEN 60 AND 80 THEN 'Senior (60–80)'
+    ELSE '80+'
+  END AS age_group,
+  FORMAT_DATE('%Y-%m', create_date) AS YYYY_MM,
+  COUNT(customer_id) AS new_customers,
+  COUNTIF(gender = "Female") as new_female_customers,
+  ROUND(COUNTIF(gender = "Female") * 100 / COUNT(customer_id),2) female_participation,
+  COUNTIF(gender = "Male") as new_male_customers,
+  ROUND(COUNTIF(gender = "Male") * 100 / COUNT(customer_id),2) male_participation,
+  COUNTIF(marital_status = "Single") as single_customers,
+  ROUND(COUNTIF(marital_status = "Single") * 100 / COUNT(customer_id),2) single_pct,
+  COUNTIF(marital_status="Married") married_customer,
+  ROUND(COUNTIF(marital_status = "Married") * 100 / COUNT(customer_id),2) married_pct
+FROM clean_records_of_customers
+GROUP BY  YYYY_MM, age_group, Country
+ORDER BY  country ASC, age_group ASC, YYYY_MM ASC 
+)
+SELECT Country, age_group, YYYY_MM, new_customers,
+COALESCE(LAG(new_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_customer,
+ROUND(COALESCE((new_customers - LAG(new_customers) OVER (PARTITION BY Country, age_group ORDER BY YYYY_MM)) / NULLIF(LAG(new_customers) OVER (PARTITION BY Country, age_group ORDER BY YYYY_MM), 0),0) * 100,2)AS `MoM%_New_Customers`,
+  new_female_customers,
+  female_participation,
+COALESCE(LAG(new_female_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_female_customers,
+ROUND(COALESCE((new_female_customers - LAG(new_female_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM))/NULLIF(LAG(new_female_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM),0), 0)* 100,2) as `MoM%_New_female_Customers`,
+  new_male_customers,
+  male_participation,
+COALESCE(LAG(new_male_customers) OVER(PARTITION BY Country, age_group Order by YYYY_MM),0) AS prev_mth_male_customer,
+ROUND(COALESCE((new_male_customers - LAG(new_male_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM))/NULLIF(LAG(new_male_customers) OVER(PARTITION BY Country, age_group ORDER BY YYYY_MM),0),0)* 100,2) as `MoM%_New_male_customers`
+FROM New_customers_data;
+
