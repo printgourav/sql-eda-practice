@@ -530,6 +530,89 @@ SELECT
   GROUP BY 1
   ORDER BY 2 ASC;  
 
+-- Purpose:
+-- To analyze revenue contribution by marital status.
+-- Observations:
+-- Married customers generate higher revenue (~15.2M) compared to single customers (~14.2M).
+-- The difference is noticeable but not extreme, indicating both segments are important contributors.
+-- Revenue distribution is relatively balanced, with a slight skew toward married customers.
+-- Suggests married customers may have higher purchasing power or frequency.
+  SELECT 
+  marital_status,
+  SUM(sales_amount) AS Revenue
+  FROM `playground027.my_eda_project.customer` JOIN `playground027.my_eda_project.sales`
+  USING(customer_key)
+  GROUP BY 1
+  ORDER BY 2 ASC;  
+  
+  WITH shipping_overview AS (
+  SELECT
+    country,
+    order_number,
+    order_date,
+    shipping_date,
+    due_date,
+    EXTRACT(YEAR FROM order_date) AS Year,
+    DATE_DIFF(shipping_date, order_date, DAY) AS fulfillment_lag,
+    DATE_DIFF(due_date, order_date, DAY) AS delivery_window,
+    DATE_DIFF(due_date, shipping_date, DAY) AS buffer_days
+  FROM `playground027.my_eda_project.sales`
+  JOIN `playground027.my_eda_project.customer`
+  USING(customer_key)
+  WHERE order_date IS NOT NULL
+    AND shipping_date IS NOT NULL
+    AND due_date IS NOT NULL
+),
+
+shipping_summary AS (
+  SELECT 
+    country,
+    Year,
+    AVG(fulfillment_lag) AS avg_fulfillment_day,
+    AVG(delivery_window) AS avg_delivery_window,
+    AVG(buffer_days) AS avg_buffer_days
+  FROM shipping_overview
+  GROUP BY country, Year
+)
+
+-- Purpose:
+-- To measure year-over-year changes in shipping efficiency metrics by country.
+-- Observations:
+-- Shipping performance metrics remain identical across all years and countries,
+-- resulting in 0% YoY variation.
+SELECT 
+  country,
+  Year,
+  ROUND(
+    100 * (avg_fulfillment_day - LAG(avg_fulfillment_day) OVER(PARTITION BY country ORDER BY Year))
+    / NULLIF(LAG(avg_fulfillment_day) OVER(PARTITION BY country ORDER BY Year), 0), 2
+  ) AS YoY_avg_fulfillment_pct,
+  ROUND(
+    100 * (avg_delivery_window - LAG(avg_delivery_window) OVER(PARTITION BY country ORDER BY Year))
+    / NULLIF(LAG(avg_delivery_window) OVER(PARTITION BY country ORDER BY Year), 0), 2
+  ) AS YoY_avg_delivery_window_pct,
+  ROUND(
+    100 * (avg_buffer_days - LAG(avg_buffer_days) OVER(PARTITION BY country ORDER BY Year))
+    / NULLIF(LAG(avg_buffer_days) OVER(PARTITION BY country ORDER BY Year), 0), 2
+  ) AS YoY_avg_buffer_days_pct
+FROM shipping_summary
+ORDER BY country, Year;
+
+-- Purpose:
+-- To calculate cumulative sales growth over time.
+-- Observations:
+-- Shows how total revenue accumulates across order dates.
+-- Helps identify growth trajectory and periods of accelerated sales.
+-- Useful for trend analysis and business performance monitoring.
+SELECT
+  order_date,
+  SUM(SUM(sales_amount)) OVER(ORDER BY order_date) AS Running_Total
+FROM `playground027.my_eda_project.sales`
+WHERE order_date IS NOT NULL
+GROUP BY order_date
+ORDER BY order_date;
+
+
 
 
 
